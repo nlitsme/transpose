@@ -75,9 +75,9 @@ NOTE: this depends on the actual rendering by `ls`, column widths may vary.
 
 Will result in:
 
-    a	d	
-    b	e	
-    c	f	
+    a   d   
+    b   e   
+    c   f   
 
 ## Rotate by 45 degrees
 
@@ -89,11 +89,11 @@ Will result in:
 
 Results in:
 
-            a		
-        d		b	
-    g		e		c
-        h		f	
-            i		
+            a       
+        d       b   
+    g       e       c
+        h       f   
+            i       
 
 
 ## reverse column order
@@ -105,8 +105,8 @@ Results in:
 
 Will result in:
 
-    c	b	a
-    f	e	d
+    c   b   a
+    f   e   d
 
 # Author
 Willem Hengeveld <itsme@xs4all.nl> 
