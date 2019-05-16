@@ -13,7 +13,10 @@ Several ways of defining what consists a 'column':
 Author: Willem Hengeveld <itsme@xs4all.nl>  (C) 2019
 
 TODO: handle multiline quoted values.
-TODO: add option to specify regex extracting columns from line.
+TODO: add option to specify regex extracting columns from entire line.
+TODO: add option to left/right-align columns in the output.
+TODO: add option to retain separators with their column value.
+      -- you can already kind of do this using the --pattern option.
 """
 from __future__ import division, print_function
 import re
@@ -261,9 +264,7 @@ def getoutputseparator(args):
 
     TODO: use retained separator, or explicitly specified output-separator.
     """
-    if args.width:
-        return ""
-    elif args.separator == "":
+    if args.separator == "":
         return args.separator
     elif len(args.separator) == 1:
         return args.separator
@@ -406,7 +407,7 @@ Specify negative numbers using: --rotate=-45
             Either a comma separated list of widths, with the last value taken for the remaining columns. ( 5,1,1,10 )
             Optionally a width can be prefixed with a column number followed by a colon. ( 5:1,7:1,8 )""")
     parser.add_argument('-l', '--keepspaces', action='store_true', help='Leading whitespace is relevant')
-    parser.add_argument('-a', '--align', action='store_true', help='Re-Align columns')
+    #parser.add_argument('-a', '--align', action='store_true', help='Re-Align columns')
     parser.add_argument('-q', '--quoted', action='store_true', help='Quoted strings with C style escapes ( using backslash )in columns.')
     parser.add_argument('-Q', '--dquoted', action='store_true', help='Quoted strings with SQL style escapes ( using repeated quotes ) in columns.')
     parser.add_argument('--yflip', '-y', action='store_true', help='reverse each line')
@@ -421,6 +422,8 @@ Specify negative numbers using: --rotate=-45
     parser.add_argument('input', metavar='DAT', type=str, nargs='*')
     args = parser.parse_args()
 
+    if args.width and args.separator is None:
+        args.separator = ""
     if args.pattern is None and args.separator is None:
         args.separator = "\t|,\\s*| +"
     if args.pattern is not None and args.separator is None:
