@@ -241,7 +241,7 @@ def parsematrix(args, lines):
 
 def makesquare(m):
     """
-    Adds None values, making the matrix 'm' square shaped.
+    Adds empty values, making the matrix 'm' square shaped.
     """
     h = len(m)
     w = max(len(row) for row in m) if m else 0
@@ -256,6 +256,18 @@ def makesquare(m):
     for row in m:
         if len(row) < size:
             row += [""] * (size-len(row))
+
+
+def makerectangular(m):
+    """
+    Adds empty values, making the matrix 'm' rectangular shaped.
+    """
+    w = max(len(row) for row in m) if m else 0
+
+    # then make all rows equal length
+    for row in m:
+        if len(row) < w:
+            row += [""] * (w-len(row))
 
 
 def getoutputseparator(args):
@@ -320,6 +332,7 @@ def rotatematrix(args, m):
         args.rotate -= 45
         diamond = True
 
+    # note: xflip, yflip and transpose are handle by more optimized code in 'processfile'
     if args.xflip:
         t = transformations[2]
     elif args.yflip:
@@ -368,6 +381,15 @@ def reverselines(args, fh):
         cols = processline(args, line.rstrip("\r\n"))
         yield separator.join(cols[::-1])
 
+def transposematrix(m):
+    h = len(m)
+    w = len(m[0]) if m else 0
+    res = [ [ None for _ in range(h) ] for _ in range(w) ]
+    for y in range(h):
+        for x in range(w):
+            res[x][y] = m[y][x]
+    return res
+
 
 def processfile(args, fh):
     """
@@ -383,8 +405,13 @@ def processfile(args, fh):
     else:
         lines = fh.readlines()
         m = parsematrix(args, lines)
-        makesquare(m)
-        m = rotatematrix(args, m)
+        if args.rotate is None:
+            makerectangular(m)
+            m = transposematrix(m)
+        else:
+            makesquare(m)
+            m = rotatematrix(args, m)
+
         for line in outputmatrix(args, m):
             print(line)
 
