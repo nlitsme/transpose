@@ -22,6 +22,12 @@ or, when the separator is a pattern, a TAB charater is used.
 
 Data is either read from stdin, or from files specified on the commandline.
 
+# Install
+
+You can instal `transpose` from [pypi](https://pypi.org/project/text-transpose/1.0.0/) using `pip`:
+
+    pip install text-transpose
+
 # Usage
 
     usage: transpose.py [-h] [--test] [--verbose] [-t SEPARATOR] [-p PATTERN]
