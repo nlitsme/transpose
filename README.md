@@ -120,6 +120,21 @@ Will result in:
     c   b   a
     f   e   d
 
+## reverse a line
+
+    transpose -y -w 1
+    transpose -y -p .
+
+## reverse words in a line
+
+    transpose -y -t " "
+
+## reverse a list of lines
+
+Like `tac`:
+
+    transpose -x
+
 # TODO
 
  * Handle multiline quoted values.
