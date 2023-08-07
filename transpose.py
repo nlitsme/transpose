@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
 Tool for transforming a row/column formatted set of data.
 The default action is to transpose ( swap rows with columns )
