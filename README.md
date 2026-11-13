@@ -1,157 +1,334 @@
 # transpose
+
 Command line tool for transforming row/column formatted textual data.
+The default action is to transpose a table: swap its rows and columns.
+You can also rotate by multiples of 45 degrees, reverse line order,
+or reverse the columns within each line.
 
-Often you have data formatted in rows and columns in some way, this tool
-allows one to specify how your data in each line is organised in columns.
-`transpose` can transform the matrix formed by the columns and rows in
-several ways. You can transpose, rotate by multiples of 45 or 90 degrees.
-Or flip the data vertically, or horizontally.
+Columns can be defined by fixed widths, a separator regular expression,
+a regular expression matching each field, or separators with quoted fields.
+Values remain text; quotes and escape sequences are preserved.
 
-The default action is to transpose ( swap rows with columns ).
+## Install
 
-Several ways of defining what consists a 'column':
+The script requires Python 3 and uses only the standard library:
 
-* fixed width columns.
-* using a separator pattern, default: '`\t|,\s*| +`'
-  - TAB or COMMA followed by optional whitespace or SPACES
-* by a column pattern, example: '`\s+\w+`'
-* separator with quoted strings, often used in CSV files.
+```sh
+python3 transpose.py --help
+```
 
-In the output the separator is either the single character separator specified with the `-t` option,
-or, when the separator is a pattern, a TAB charater is used.
+The project is also packaged as `text-transpose`:
 
-Data is either read from stdin, or from files specified on the commandline.
+```sh
+pip install text-transpose
+```
 
-# Install
+The examples below use the `transpose` command. When running the source
+directly, replace it with `python3 transpose.py`. A published package may
+have fewer options than the current script; check its `--help` output.
 
-You can instal `transpose` from [pypi](https://pypi.org/project/text-transpose/1.0.0/) using `pip`:
+## Usage
 
-    pip install text-transpose
+```text
+transpose [-h] [--test] [-v] [-t SEPARATOR] [-p PATTERN]
+          [-w WIDTH] [-l] [-q] [-Q] [-o OUTSEP] [-y] [-x]
+          [--rotate DEG] [+180] [+90] [-90] [+45] [-45] [--skew]
+          [DAT ...]
+```
 
-# Usage
+With no filenames, input is read from standard input. With filenames, each
+file is transformed independently and preceded by an `==> filename <==`
+heading, even when only one file is supplied. Output goes to standard output.
+Use input redirection to transform a file without a heading:
 
-    usage: transpose.py [-h] [--test] [--verbose] [-t SEPARATOR] [-p PATTERN]
-                        [-w WIDTH] [-l] [-a] [-q] [-Q] [--yflip] [--xflip]
-                        [--rotate DEG] [+180] [+90] [-90] [+45] [-45] [--skew]
-                        [DAT [DAT ...]]
+```sh
+transpose < input.txt > output.txt
+transpose first.txt second.txt
+```
 
-    transform a matrix, default: transpose
+There is no special `-` filename for standard input. Files use Python's
+default text encoding. Input line endings are removed; each output row is
+written with a newline.
 
-    positional arguments:
-      DAT
+### Options
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      --test                run unittest
-      --verbose, -v
-      -t SEPARATOR, --separator SEPARATOR
-                            column separator
-      -p PATTERN, --pattern PATTERN
-                            column pattern, example: \s+\w+
-      -w WIDTH, --width WIDTH
-                            Fixed width columns, alow multiple widths. Either a
-                            comma separated list of widths, with the last value
-                            taken for the remaining columns. ( 5,1,1,10 )
-                            Optionally a width can be prefixed with a column
-                            number followed by a colon. ( 5:1,7:1,8 )
-      -l, --keepspaces      Leading whitespace is relevant
-      -q, --quoted          Quoted strings with C style escapes ( using backslash
-                            )in columns.
-      -Q, --dquoted         Quoted strings with SQL style escapes ( using repeated
-                            quotes ) in columns.
-      --yflip, -y           reverse each line
-      --xflip, -x, --tac    like "tac", output lines in reverse order
-      --rotate DEG          Rotate by multiple of 45 degrees
-      +180, -180            rotate by 180 degrees
-      +90                   rotate by 90 degrees counter-clockwise
-      -90                   rotate by 90 degrees clockwise
-      +45                   rotate by 45 degrees counter-clockwise
-      -45                   rotate by 45 degrees clockwise
-      --skew                rotate by 45 degrees clockwise, but de-indent
+| Option | Meaning |
+| --- | --- |
+| `-t REGEX`, `--separator REGEX` | Split each line at matches of a separator regex. |
+| `-p REGEX`, `--pattern REGEX` | Extract fields by matching a column regex. Unmatched text is discarded. |
+| `-w SPEC`, `--width SPEC` | Split each line into fixed width fields; see below. |
+| `-l`, `--keepspaces` | Preserve leading whitespace before splitting. |
+| `-q`, `--quoted` | Recognize single- or double-quoted fields with backslash escapes. |
+| `-Q`, `--dquoted` | Also recognize doubled quotes inside quoted fields. |
+| `-o TEXT`, `--output-separator TEXT` | Join output fields with this literal string, including an empty string. |
+| `-y`, `--yflip` | Reverse fields within each line. |
+| `-x`, `--xflip`, `--tac` | Reverse input line order, preserving each line's contents. |
+| `--rotate DEG` | Rotate counter-clockwise by a multiple of 45 degrees; negative angles rotate clockwise. |
+| `+90`, `-90` | Rotate 90 degrees counter-clockwise or clockwise. |
+| `+180`, `-180` | Rotate 180 degrees. |
+| `+45`, `-45` | Rotate 45 degrees counter-clockwise or clockwise. |
+| `--skew` | Use a compact skewed layout for rotations not divisible by 90. |
+| `--test` | Run the built-in unit tests and exit. |
+| `-v`, `--verbose` | Increase test verbosity; repeat for more detail. |
+| `-h`, `--help` | Show command line help. |
 
-    Specify negative numbers using: --rotate=-45
+Transformations are alternatives, not a pipeline: `-x` takes precedence over
+`-y`, and `-y` takes precedence over rotation or transposition. `-x` does not
+split fields or use the output separator. If several rotation options are
+given, the last one wins. `--rotate 0` parses and reformats the input without
+changing its orientation. `--skew` has no effect without a diagonal rotation.
 
+For negative angles with the long option, use `--rotate=-45`.
 
-# Example
+## Defining columns
 
-## split the output of `ls` into columns, and transpose:
+### Separator patterns
 
-    ls -al | transpose -w 10,5,6,7,7,12
+The default separator is `\t|,\s*| +`: a tab, a comma followed by optional
+whitespace, or one or more ordinary spaces. Leading whitespace is removed
+unless `-l` is given. Headers and blank lines receive no special treatment.
 
-NOTE: this depends on the actual rendering by `ls`, column widths may vary.
+Use `-t` to select a different separator:
 
-Alternatively, you could split the output of `ls` into columns using:
+```sh
+transpose -t ',' < comma-separated.txt
+transpose -t '\s+' < whitespace-separated.txt
+transpose -t '\|' < pipe-separated.txt
+```
 
-    ls -al | transpose -p "\S+\s*" -t,
+The argument is a Python regular expression, so metacharacters such as `|`
+or `.` must be escaped when intended literally. Avoid capturing groups in
+separator patterns: ordinary splitting includes their matches as fields.
+Use non-capturing groups, `(?:...)`, when grouping is needed.
 
-## Swap columns and rows:
+### Column patterns
 
-    cat <<__EOF__ | transpose
-    a b c
-    d e f
-    __EOF__
+`-p` uses Python's `re.findall` to extract fields rather than splitting at
+separators. Leading whitespace is preserved automatically for nonempty
+patterns. Text outside the matches is discarded.
 
-Will result in:
+```sh
+printf 'x=12 y=34\nx=56 y=78\n' | transpose -p '\d+' -o ','
+```
 
-    a   d   
-    b   e   
-    c   f   
+```text
+12,56
+34,78
+```
 
-## Rotate by 45 degrees
+Avoid capturing groups: one group returns only the captured text, while
+multiple groups return tuples that cannot be formatted as output fields.
+The `-t` argument can still set the default output separator in pattern mode;
+`-o` is the clearer way to choose it explicitly.
 
-    cat <<__EOF__ | transpose -45
-    a b c
-    d e f
-    g h i
-    __EOF__
+### Fixed width columns
 
-Results in:
+`-w` measures widths in Python string characters, not bytes or terminal
+display cells. Leading whitespace is always preserved in this mode.
 
-            a       
-        d       b   
-    g       e       c
-        h       f   
-            i       
+| Specification | Fields extracted from each line |
+| --- | --- |
+| `2,3` | Two characters, then three characters, then the entire remainder. |
+| `2,3,*:8` | Two characters, then three characters, then repeated eight-character fields. |
+| `*:1` | One character per field until the line ends. |
+| `5:1,7:1,8` | Width one for columns 5 and 7; width eight for unspecified columns through column 8; then the remainder. |
 
+Column indices in `N:W` are **zero-based**. An indexed entry sets that
+column's width; a bare width appends a column and supplies the default width
+for unspecified positions. `*:W` repeats width `W` after the explicitly
+defined columns until the line is consumed. Use positive widths.
 
-## reverse column order
+Without `*:W`, the remaining text becomes one final field, even when empty.
+Short lines can produce short or empty fields.
 
-    cat <<__EOF__ | transpose -y
-    a b c
-    d e f
-    __EOF__
+```sh
+printf 'abcdefghij\nklmnopqrst\n' | transpose -w 2,3 -o '|'
+```
 
-Will result in:
+```text
+ab|kl
+cde|mno
+fghij|pqrst
+```
 
-    c   b   a
-    f   e   d
+For example, fixed widths can transpose a long directory listing:
 
-## reverse a line
+```sh
+ls -al | transpose -w 10,5,6,7,7,12 -o ' | '
+```
 
-    transpose -y -w 1
-    transpose -y -p .
+The widths depend on the actual `ls` output. Alternatively, extract
+non-whitespace runs together with their following whitespace:
 
-## reverse words in a line
+```sh
+ls -al | transpose -p '\S+\s*' -o ','
+```
 
-    transpose -y -t " "
+### Quoted fields
 
-## reverse a list of lines
+Combine `-q` or `-Q` with a separator to keep delimiters inside quoted fields:
 
-Like `tac`:
+```sh
+printf 'name,city\n"Doe, Jane","New York"\n' | transpose -t ',' -q -o '|'
+```
 
-    transpose -x
+```text
+name|"Doe, Jane"
+city|"New York"
+```
 
-# TODO
+Both modes recognize single and double quotes and backslash escapes.
+`-Q` additionally recognizes doubled quotes, such as `"a""b"` or `'a''b'`.
+Quotes and escape sequences are retained exactly; they are not decoded or
+rewritten. A quote must begin at the start of a field to be recognized.
+For comma-separated input with optional spaces after commas, use `-t ',\s*'`.
 
- * Handle multiline quoted values.
- * Add option to specify regex extracting columns from entire line.
- * Add option to left/right-align columns in the output.
- * Add option to retain separators with their column value.
-   - you can already kind of do this using the --pattern option.
- * I thought about adding options to change the way values are quoted, and separated,
-   now i think that is better left to a different tool. So for now i will just leave
-   the quoting and escaping intact, like it is.
- * Add option to specify an output separator.
+This is line-based parsing: quoted values spanning multiple input lines are
+not supported. Output is joined literally, without adding quoting or escaping
+for the chosen separator. The parser is not a strict CSV validator.
+Use separator patterns that consume at least one character.
 
-# Author
-Willem Hengeveld <itsme@xs4all.nl> 
+When splitting options are combined, fixed widths take precedence, followed
+by quoted fields, column patterns, and ordinary separator splitting.
+
+## Output and uneven rows
+
+`-o` always selects the literal output separator. Without `-o`:
+
+| Effective separator setting | Output separator |
+| --- | --- |
+| One-character `-t` argument | That character, even if it is a regex metacharacter. |
+| Longer separator regex, including the default | Tab. |
+| Fixed width or pattern mode with no `-t` | Empty string; fields are concatenated. |
+
+Shell escape notation is not decoded by the tool. In Bash, use `-o $'\t'`
+for a literal tab; `-o '\t'` emits a backslash followed by `t`.
+
+Before transposition or rotation, shorter rows are padded with empty fields
+to form a rectangle. Diagonal rotations additionally pad to a square whose
+side is the larger input dimension. Empty input produces no data rows.
+
+Trailing empty fields are removed from each output row after transposition
+or rotation; leading and interior empty fields remain. A wholly empty row
+becomes a blank line. `-y` reverses each line independently without padding
+or trimming empty fields. Original separators are not retained after parsing.
+
+Transposition, rotation, and line reversal read the whole input into memory.
+Field reversal with `-y` processes one line at a time. Parsing and file errors
+stop processing; there is no continue-on-error mode.
+
+## Examples
+
+### Swap rows and columns
+
+```sh
+printf 'a b c\nd e f\n' | transpose -o ' '
+```
+
+```text
+a d
+b e
+c f
+```
+
+### Rotate a rectangle
+
+```sh
+printf 'a b c\nd e f\n' | transpose +90 -o ' '
+```
+
+```text
+c f
+b e
+a d
+```
+
+With `-90`, the same input becomes:
+
+```text
+d a
+e b
+f c
+```
+
+### Rotate by 45 degrees
+
+```sh
+printf 'a b c\nd e f\ng h i\n' | transpose -45 -o ' '
+```
+
+```text
+  a
+ d  b
+g  e  c
+ h  f
+  i
+```
+
+Add `--skew` to compact the layout:
+
+```text
+a
+d b
+g e c
+ h f
+  i
+```
+
+Empty cells provide the spacing; values are not padded to equal display
+widths, so longer values can make diagonal layouts appear uneven.
+
+### Reverse fields, characters, or lines
+
+```sh
+printf 'a b c\nd e f\n' | transpose -y -o ' '
+```
+
+```text
+c b a
+f e d
+```
+
+Reverse characters using a repeating width or a column pattern:
+
+```sh
+transpose -y -w '*:1'
+transpose -y -p '.'
+```
+
+`-w 1` alone splits off one character and treats the remainder as one field;
+it does not split the entire line into characters.
+
+Reverse words separated by individual spaces:
+
+```sh
+transpose -y -t ' '
+```
+
+Reverse line order, like `tac`:
+
+```sh
+transpose -x
+```
+
+## Tests
+
+```sh
+python3 transpose.py --test -vv
+```
+
+The built-in tests cover quoted fields, empty fields, transposition,
+rectangular rotations, diamond layouts, and invalid rotation angles.
+
+## TODO
+
+* Handle multiline quoted values.
+* Add left/right alignment of output columns.
+* Add an option to retain separators with their column values.
+  The `--pattern` option can already retain matching whitespace or separators.
+* Quoting and escaping are deliberately left intact. Rewriting these is
+  better handled by a separate tool.
+
+## Author
+
+Willem Hengeveld <itsme@xs4all.nl>
